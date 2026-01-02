@@ -14,11 +14,11 @@ export type FilmStyle =
   // REALISMO
   | "raw" | "documentary" | "editorial" | "cinematic" | "studio" | "portrait_skin" | "hyperreal"
   // ARTE
-  | "analog" | "cyber" | "oil" | "sketch" | "watercolor";
+  | "analog" | "cyber" | "oil" | "sketch" | "watercolor"; // PATCH: Asegurado watercolor
 
 export type UsageTemplate = 
   | "none" | "news" | "social_organic" | "poster" | "thumbnail" 
-  | "catalog" | "archive" | "cinema";
+  | "catalog" | "archive" | "cinema"; // PATCH: Asegurado cinema
 
 export type WatermarkPosition = "top_left" | "top_right" | "bottom_left" | "bottom_right" | "center";
 
@@ -29,6 +29,7 @@ export interface WatermarkConfig {
   opacity: number;
 }
 
+// PATCH: Snapshot completo para restauración exacta en UI
 export interface RevealSettingsSnapshot {
   aspectRatio: AspectRatio;
   fidelity: FidelityLock;

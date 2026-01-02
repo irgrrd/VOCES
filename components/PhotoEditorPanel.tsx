@@ -9,6 +9,19 @@ import {
 import { MoviolaService } from '../services/moviolaService';
 import { MoviolaInput, EditScriptMaster, AspectRatio, FidelityLock, FilmStyle, UsageTemplate, WatermarkPosition, RevealSettingsSnapshot } from '../types/moviola';
 
+// --- PATCH START: UUID Helper ---
+const safeUUID = () => {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback para entornos inseguros o legacy
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+// --- PATCH END ---
+
 interface PhotoEditorProps {
   analysisContext?: string; 
   narrativeText?: string;
@@ -120,7 +133,6 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
 
   // --- PERSISTENCIA (Effect) ---
   useEffect(() => {
-    // Load settings from local storage if available
     const saved = localStorage.getItem('voces_darkroom_settings_v5');
     if (saved) {
         try {
@@ -129,13 +141,11 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
             setLens(parsed.lens || "35mm");
             setLighting(parsed.lighting || "natural");
             setFilmStyle(parsed.filmStyle || "raw");
-            // Not loading prompt to allow fresh prompts from parent
         } catch(e) {}
     }
   }, []);
 
   useEffect(() => {
-    // Save settings
     const settings = { aspectRatio, lens, lighting, filmStyle };
     localStorage.setItem('voces_darkroom_settings_v5', JSON.stringify(settings));
   }, [aspectRatio, lens, lighting, filmStyle]);
@@ -156,7 +166,6 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
       }
       if (t.settings.lens) setLens(t.settings.lens);
       if (t.settings.light) setLighting(t.settings.light);
-      // Optional default ref weight for templates
       setReferenceWeight(60); 
     }
   };
@@ -166,19 +175,24 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
     const liObj = LIGHTING.find(l => l.id === lighting);
     const sObj = STYLES.find(s => s.id === filmStyle);
     
-    // Auto-compile
+    // --- PATCH START: Prompt Exhaustivo ---
     const tech = `[TECH]: ${lObj?.prompt || lens}, ${liObj?.prompt || lighting}, ${sObj?.prompt || filmStyle}`;
     const context = `[SCENE]: ${analysisContext ? analysisContext.substring(0, 150) : 'Cinematic scene'}`;
     const narrative = narrativeText ? `[ACTION]: ${narrativeText.substring(0, 150)}...` : '';
     const neg = negativePrompt ? `[EXCLUDE]: ${negativePrompt}` : '';
-    const wm = wmEnabled ? `[COMPOSITION]: Leave space in ${wmPosition} for watermark "${wmText}".` : '';
     
-    // Manual Override appended at the END
+    // Textual specs to avoid hallucination
+    const fidelityNote = `[FIDELITY]: ${fidelity} (Ref Weight: ${referenceWeight}%)`;
+    const formatNote = `[FORMAT]: Aspect Ratio ${aspectRatio}`;
+    const wmNote = wmEnabled ? `[COMPOSITION]: Leave space in ${wmPosition} for watermark "${wmText}" (Opacity: ${wmOpacity}%).` : '';
+    
     const man = manualOverride ? `[OVERRIDE]: ${manualOverride}` : '';
 
-    const full = `${context}\n${narrative}\n${tech}\n${wm}\n${neg}\n${man}`;
+    const full = `${context}\n${narrative}\n${tech}\n${fidelityNote}\n${formatNote}\n${wmNote}\n${neg}\n${man}`;
+    // --- PATCH END ---
+    
     setPrompt(full);
-  }, [lens, lighting, filmStyle, analysisContext, narrativeText, negativePrompt, manualOverride, wmEnabled, wmPosition, wmText]);
+  }, [lens, lighting, filmStyle, analysisContext, narrativeText, negativePrompt, manualOverride, wmEnabled, wmPosition, wmText, fidelity, referenceWeight, aspectRatio, wmOpacity]);
 
   // Init prompt once
   useEffect(() => {
@@ -212,11 +226,18 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
       setWmEnabled(s.watermark.enabled);
       setWmText(s.watermark.text);
       setWmPosition(s.watermark.position);
+      setWmOpacity(s.watermark.opacity); // PATCH: Restaurar opacidad
       setPrompt(item.prompt);
+
+      // PATCH: Restaurar grupo de estilo
+      const styleObj = STYLES.find(style => style.id === s.filmStyle);
+      if (styleObj) {
+        setStyleGroup(styleObj.group);
+      }
   };
 
   const handleReveal = async () => {
-    const traceId = crypto.randomUUID();
+    const traceId = safeUUID(); // PATCH: usar safeUUID
     const settings: RevealSettingsSnapshot = {
         aspectRatio, 
         filmStyle, 
@@ -230,7 +251,6 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
         manualOverride
     };
 
-    // Payload for Parent (includes base64 for generation, but we don't save base64 in history)
     const payload = {
         traceId,
         ...settings,
@@ -238,7 +258,6 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
         prompt: prompt
     };
 
-    // Log Trazabilidad
     console.log("REVEAL_COMPLETED", { 
         traceId, 
         compiledPrompt: prompt?.substring(0,50) + "...", 
@@ -249,12 +268,11 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
     try {
         const resultUrl = await onReveal?.(payload);
         
-        // Add to Session History if successful
         if (resultUrl) {
             const newItem: HistoryItem = {
                 id: traceId,
                 createdAt: Date.now(),
-                thumbUrl: resultUrl, // Assuming result is a dataURL we can show
+                thumbUrl: resultUrl, 
                 prompt: prompt || "",
                 settings: settings
             };
@@ -266,7 +284,7 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
   };
 
   const handleGenerateScript = async () => {
-    const traceId = crypto.randomUUID();
+    const traceId = safeUUID(); // PATCH: usar safeUUID
     const settings: RevealSettingsSnapshot = {
         aspectRatio, fidelity, lens, lighting, 
         filmStyle, templatePreset: template, referenceWeight, 
@@ -285,7 +303,6 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
     
     const master = await MoviolaService.compileMasterScript(input);
 
-    // LOG DE TRAZABILIDAD
     console.log("MOVIOLA_MASTER_READY", master);
     
     onGenerateScript?.(master);
