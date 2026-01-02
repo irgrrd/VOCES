@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+
+import React, { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import {
   Camera,
   Clapperboard,
@@ -43,8 +44,16 @@ export interface PhotoEditorProps {
   culturalElements: string[];
   initialPrompt?: string;
 
-  // Revelado (imagen) - tu app lo conectará con geminiService.generateIllustrativeImage
-  onGenerateImage?: (prompt: string, settings: { aspectRatio: AspectRatio; lens: string; style: FilmStyle }) => void;
+  // Revelado (imagen) - actualizado para aceptar referencia opcional
+  onGenerateImage?: (
+    prompt: string, 
+    settings: { 
+      aspectRatio: AspectRatio; 
+      lens: string; 
+      style: FilmStyle;
+      referenceImage?: string; // Base64 del archivo subido
+    }
+  ) => void;
 
   // Moviola (guion) - devolvemos el master ya compilado
   onGenerateScript?: (master: EditScriptMaster) => void;
@@ -331,8 +340,10 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
   const [durationSec, setDurationSec] = useState<number>(8);
   const [intent, setIntent] = useState<string>("Teaser documental, movimiento lento, claridad narrativa");
 
-  // Optional: reference upload placeholder (UI-only)
+  // Reference upload
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [referenceName, setReferenceName] = useState<string | null>(null);
+  const [referenceBase64, setReferenceBase64] = useState<string | null>(null);
 
   const realismStyles = useMemo(() => STYLES.filter((s) => s.group === "REALISMO"), []);
   const artStyles = useMemo(() => STYLES.filter((s) => s.group === "ARTE"), []);
@@ -393,6 +404,8 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
       ? `Manual override (user): ${manualOverride.trim()}`
       : "";
 
+    const refNote = referenceName ? `[REFERENCE]: Use provided reference image as composition/background guide.` : "";
+
     const compiled = [
       "[SCENE]:",
       scene ? scene + "." : "No scene context provided.",
@@ -407,6 +420,7 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
       `${fidelityPrompt}.`,
       "[REFERENCE WEIGHT]:",
       `${refWeightText(referenceWeight)}`,
+      refNote,
       wm ? `[WATERMARK]: ${wm}` : "",
       manual ? `[MANUAL]: ${manual}` : "",
       neg ? `[NEGATIVE]: ${neg}` : "",
@@ -429,6 +443,7 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
     narrativeText,
     culturalElements,
     templatePreset,
+    referenceName
   ]);
 
   // Init prompt if empty
@@ -437,12 +452,32 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const handleUpload = () => {
-    // UI placeholder (sin FileReader aquí). Si ya tienes upload real, conecta tu handler.
-    setReferenceName("referencia.jpg");
+  // --- Handlers Upload ---
+  const handleUploadClick = () => {
+    fileInputRef.current?.click();
   };
 
-  const handleClearReference = () => setReferenceName(null);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setReferenceName(file.name);
+    
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+        const result = ev.target?.result as string;
+        // Obtenemos solo el base64 sin el prefijo data:image...
+        const base64 = result.split(',')[1];
+        setReferenceBase64(base64);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleClearReference = () => {
+    setReferenceName(null);
+    setReferenceBase64(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
 
   const handleReveal = async () => {
     // Siempre compila antes de revelar (para consistencia)
@@ -465,17 +500,23 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
       compiledPrompt: promptText,
       revealSettings,
       analysisContextHead: head(analysisContext, 120),
+      hasReference: !!referenceBase64
     });
 
-    // Callback real (tu app conectará con geminiService)
-    onGenerateImage?.(promptText, { aspectRatio, lens, style: filmStyle });
+    // Callback real
+    onGenerateImage?.(promptText, { 
+      aspectRatio, 
+      lens, 
+      style: filmStyle,
+      referenceImage: referenceBase64 || undefined
+    });
 
-    // Simulación de “resultado” para history strip (sin generar pixels)
+    // Simulación de “resultado” para history strip
     const newItem: HistoryItem = {
       id: uid(),
-      url: "placeholder://image", // reemplaza por dataURL/base64 cuando tengas respuesta real
+      url: "placeholder://image", 
       timestamp: Date.now(),
-      params: `${aspectRatio} | ${lens} | ${lighting} | ${filmStyle} | ${templatePreset}`,
+      params: `${aspectRatio} | ${lens} | ${lighting} | ${filmStyle}`,
       compiledPromptHead: head(promptText, 120),
     };
     setHistory((prev) => [newItem, ...prev].slice(0, 12));
@@ -838,14 +879,21 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
               </div>
             </section>
 
-            {/* Reference upload (UI placeholder) */}
+            {/* Reference upload (REAL UPLOAD) */}
             <section className="pt-2 pb-4 border-b border-slate-700">
               <div className="flex items-center gap-2">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  className="hidden" 
+                  accept="image/*" 
+                  onChange={handleFileChange} 
+                />
                 <button
-                  onClick={handleUpload}
+                  onClick={handleUploadClick}
                   className="flex-1 py-3 border border-dashed border-slate-700 rounded-lg text-slate-500 hover:text-slate-300 hover:border-slate-500 hover:bg-slate-900/50 transition-all flex items-center justify-center gap-2 text-xs"
                 >
-                  <Upload className="w-4 h-4" /> {referenceName ? "Cambiar referencia" : "Subir Referencia (Opcional)"}
+                  <Upload className="w-4 h-4" /> {referenceName ? `Cambiar: ${referenceName}` : "Subir Referencia Visual (Opcional)"}
                 </button>
                 {referenceName && (
                   <button
@@ -858,8 +906,9 @@ const PhotoEditorPanel: React.FC<PhotoEditorProps> = ({
                 )}
               </div>
               {referenceName && (
-                <div className="mt-2 text-[10px] text-slate-500">
-                  Referencia cargada: <span className="text-slate-300 font-mono">{referenceName}</span>
+                <div className="mt-2 text-[10px] text-slate-500 flex items-center justify-between">
+                  <span>Referencia cargada. Se usará para composición/fondo.</span>
+                  <span className="text-amber-500 font-mono text-[9px]">READY</span>
                 </div>
               )}
             </section>

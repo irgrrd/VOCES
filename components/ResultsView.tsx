@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { GeneratedContent, VoiceOption, ImageAnalysis, NarrativeConfig } from '../types';
 import { generateSpeech, generateIllustrativeImage, generateVideoFromImage } from '../services/geminiService';
@@ -99,10 +100,10 @@ const ResultsView: React.FC<Props> = ({ content, onReset, originalImageFile, ana
   };
 
   // --- REVELADO (IMAGEN) ---
-  // PhotoEditorPanel v5 manda: { aspectRatio, lens, style }
+  // PhotoEditorPanel v5 manda: { aspectRatio, lens, style, referenceImage? }
   const handlePhotoEditorGenerate = async (
     prompt: string,
-    settings: { aspectRatio: AspectRatio; lens: string; style: FilmStyle }
+    settings: { aspectRatio: AspectRatio; lens: string; style: FilmStyle; referenceImage?: string }
   ) => {
     if (!config) return;
     setIsGeneratingImage(true);
@@ -120,8 +121,8 @@ const ResultsView: React.FC<Props> = ({ content, onReset, originalImageFile, ana
         prompt,
         subjectImageBase64,
         config.visionModel,
-        null,
-        settings.aspectRatio // <- ratio expandido via types/moviola.ts
+        settings.referenceImage || null, // Pasamos la referencia de fondo si existe
+        settings.aspectRatio
       );
 
       setGeneratedImageUrl(base64Image);
