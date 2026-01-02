@@ -1,62 +1,56 @@
 
-# MOVIOLA: Motor de Guionización Técnica
-**Versión:** 1.0 (Integrada en Voces de Guerrero v4.3)
+# MOVIOLA & EXPANDED DARKROOM v5.0
 
-## 1. Definición y Propósito
-**MOVIOLA** no es un generador de video. Es un **orquestador de instrucciones** que traduce decisiones creativas (narrativa, revelado de imagen, cultura) en un **Edit Script Master** (JSON). 
+## Visión General
+Este módulo consolida dos funciones críticas del sistema Voces de Guerrero:
+1.  **Expanded Darkroom:** Un editor visual avanzado para "revelar" imágenes con control total sobre lentes, iluminación y composición.
+2.  **Moviola Engine:** Un motor de guionización técnica que traduce narrativa e imagen a instrucciones JSON precisas para plataformas de video generativo (Veo, Sora, Wan). **No genera video MP4 directamente.**
 
-Este script sirve como fuente de verdad inmutable para alimentar motores de video generativo externos (Google Veo, OpenAI Sora, Wanx, etc.), asegurando coherencia visual y narrativa sin "alucinaciones" de API.
+---
 
-## 2. Flujo de Datos
+## 1. Expanded Darkroom (Revelado)
 
-1.  **Input (MoviolaInput):** Se captura el estado del "Cuarto de Revelado" + Narrativa.
-2.  **Hashing:** Se genera un SHA-256 del input canonicalizado para asegurar trazabilidad.
-3.  **Compilación:** Se segmenta la narrativa en clips de 3-6 segundos.
-4.  **Prompt Engineering:** Se construye un prompt técnico en inglés para cada clip, inyectando datos de lentes, iluminación y estilo sin usar flags propietarios.
-5.  **Output (EditScriptMaster):** JSON final listo para consumo.
+### Tira de Prueba (Session History)
+*   **Funcionalidad:** Mantiene un registro temporal de los intentos de revelado durante la sesión actual.
+*   **UX:** Barra horizontal ubicada bajo los botones principales.
+*   **Acción:** Al hacer clic en una miniatura, se restauran todos los settings (Lente, Ratio, Estilo) utilizados para esa imagen, permitiendo iterar rápidamente sobre configuraciones exitosas.
 
-## 3. Diccionario de Datos
+### Controles Avanzados
+*   **Formatos:** 10 Ratios soportados, incluyendo formatos de nicho (21:9 Cine, 4:5 Social).
+*   **Estilos:** Agrupados semánticamente en "Realismo" y "Arte". Incluye soporte para estilos específicos como "Watercolor" y "Hyperreal".
+*   **Watermark:** Se gestiona estrictamente como **metadato** e instrucción textual en el prompt (`[COMPOSITION]: Leave space...`). No realiza composición rasterizada en el cliente.
+*   **Fidelidad:** Sistema de bloqueo (Lock A/B/C) para controlar cuánto se respeta la imagen de referencia.
 
-### MoviolaInput (Entrada)
-| Campo | Origen | Descripción |
-| :--- | :--- | :--- |
-| `traceId` | Sistema | UUID determinista de la sesión. |
-| `analysisContext` | IA (Visión) | Descripción de la escena original. |
-| `revealSettings` | Usuario (UI) | Ajustes de cámara (Lente, Ratio, Estilo). |
-| `compiledVisualPrompt`| Sistema | Prompt usado para la imagen base. |
+---
 
-### EditScriptMaster (Salida)
-| Campo | Tipo | Descripción |
-| :--- | :--- | :--- |
-| `meta.inputSnapshotHash`| String | Hash de integridad. Si el input cambia, el hash cambia. |
-| `timeline` | Array | Lista secuencial de clips. |
-| `timeline[].genPromptBase`| String | Prompt "vanilla" en inglés técnico. |
-| `enginePackets` | Array | Instrucciones optimizadas por motor (Veo, Sora, etc). |
+## 2. Moviola Engine (Guionización)
 
-## 4. Ejemplo de Salida (JSON Snippet)
+Moviola no es un editor de video. Es un **arquitecto de prompts**. Su salida es un objeto JSON (`EditScriptMaster`) que orquesta la generación de video en sistemas externos.
+
+### Estructura del Guion (JSON)
 
 ```json
 {
   "meta": {
-    "traceId": "trace_1740000000_abc12",
-    "inputSnapshotHash": "a1b2c3d4...",
+    "traceId": "uuid...",
     "formatRatio": "16:9",
-    "totalDurationSec": 5
-  },
-  "rules": {
-    "language": "es-MX",
-    "negativesGlobal": "Exclude: watermark, text, logo, deformed..."
+    "totalDurationSec": 10
   },
   "timeline": [
     {
-      "id": "clip_01",
+      "id": "clip_1",
       "timecode": { "in": "00:00", "out": "00:05", "durationSec": 5 },
       "visuals": {
-        "shotType": "Wide",
-        "cameraMove": "Establish scene",
-        "description": "El mercado de Chilpancingo amanece con neblina..."
+        "shotType": "Wide Establishing Shot",
+        "description": "El mercado despierta con la niebla..."
       },
-      "genPromptBase": "Shot on 35mm lens. Analog look. Natural lighting. Cultural context: Mezcal, Mercado. Segment action: Market opening scene. Target aspect ratio: 16:9..."
+      "genPromptBase": "Action: El mercado... Visuals: Shot on 35mm... Intent: Cinematic..."
+    },
+    {
+      "id": "clip_2",
+      "timecode": { "in": "00:05", "out": "00:10", "durationSec": 5 },
+      "visuals": { "shotType": "Close Up", "description": "Manos cortando rábano..." },
+      "genPromptBase": "Action: Manos..."
     }
   ],
   "enginePackets": [
@@ -64,15 +58,17 @@ Este script sirve como fuente de verdad inmutable para alimentar motores de vide
       "engine": "Veo",
       "status": "READY",
       "optimizedPrompts": [
-        {
-          "clipId": "clip_01",
-          "prompt": "Shot on 35mm lens... . Cinematic camera movement, smooth motion, coherent scene, HDR. Exclude: watermark, text..."
-        }
+        { "clipId": "clip_1", "prompt": "Action: El mercado... , cinematic camera movement, HDR..." }
       ]
     }
   ]
 }
 ```
 
-## 5. Disclaimer Técnico
-Moviola opera bajo el principio de **"Prompt Engineering Puro"**. No interactúa con APIs de video directamente ni garantiza parámetros físicos (fps, seed) fuera del control textual del modelo destino. La calidad del video final depende del motor externo utilizado y su interpretación del prompt generado.
+### Prompt Engineering Determinista
+Moviola traduce los parámetros visuales (Lente 35mm, Iluminación Neón) a **sufijos de texto plano** optimizados para cada motor. 
+*   **Veo:** Se añaden tokens como `cinematic camera movement`, `coherent scene`.
+*   **Sora:** Se enfoca en `physics-consistent`, `material behavior`.
+*   **Wan:** Se prioriza `movement-forward`, `strong contrast`.
+
+No se inventan parámetros de API ficticios (como `seed` o `fps` si la API no los expone en el prompt). Todo control es lingüístico.

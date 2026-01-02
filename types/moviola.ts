@@ -1,155 +1,102 @@
-// types/moviola.ts
+
+/**
+ * TIPOS: MOVIOLA ENGINE v5.0 (Expanded Darkroom)
+ * Contrato estricto para la generación de guiones técnicos y revelado expandido.
+ */
 
 export type FidelityLock = "LOCK_A" | "LOCK_B" | "LOCK_C";
 
-// Expanded ratios (10)
-export type AspectRatio =
-  | "1:1"
-  | "16:9"
-  | "9:16"
-  | "4:3"
-  | "3:4"
-  | "21:9"
-  | "4:5"
-  | "2:3"
-  | "3:2"
-  | "5:4";
+export type AspectRatio = 
+  | "1:1" | "16:9" | "9:16" | "4:3" | "3:4" 
+  | "21:9" | "4:5" | "2:3" | "3:2" | "5:4";
 
-// Expanded film styles (realism + art)
-export type FilmStyle =
-  // Realismo
-  | "raw"
-  | "documentary"
-  | "editorial"
-  | "cinematic"
-  | "studio"
-  | "portrait_skin"
-  | "hyperreal"
-  | "analog"
-  | "cyber"
-  // Arte
-  | "oil"
-  | "sketch";
+export type FilmStyle = 
+  // REALISMO
+  | "raw" | "documentary" | "editorial" | "cinematic" | "studio" | "portrait_skin" | "hyperreal"
+  // ARTE
+  | "analog" | "cyber" | "oil" | "sketch" | "watercolor";
 
-export type UsageTemplate =
-  | "none"
-  | "news"
-  | "social_organic"
-  | "poster"
-  | "thumbnail"
-  | "catalog"
-  | "archive";
+export type UsageTemplate = 
+  | "none" | "news" | "social_organic" | "poster" | "thumbnail" 
+  | "catalog" | "archive" | "cinema";
 
-export type WatermarkPosition =
-  | "top_left"
-  | "top_right"
-  | "bottom_left"
-  | "bottom_right"
-  | "center";
+export type WatermarkPosition = "top_left" | "top_right" | "bottom_left" | "bottom_right" | "center";
 
 export interface WatermarkConfig {
   enabled: boolean;
   text: string;
   position: WatermarkPosition;
-  opacity: number; // 0–100 (metadata)
+  opacity: number;
+}
+
+export interface RevealSettingsSnapshot {
+  aspectRatio: AspectRatio;
+  fidelity: FidelityLock;
+  lens: string;
+  lighting: string;
+  filmStyle: FilmStyle;
+  templatePreset: UsageTemplate;
+  referenceWeight: number;
+  negativePrompt: string;
+  watermark: WatermarkConfig;
+  manualOverride?: string;
 }
 
 export interface MoviolaInput {
   traceId: string;
   createdAt: number;
-
-  // Contexto heredado del pipeline previo
   analysisContext: string;
   narrativeText: string;
   culturalElements: string[];
-
-  // Prompt resultante del Cuarto de Revelado (visual compiler)
-  compiledVisualPrompt: string;
-
-  revealSettings: {
-    aspectRatio: AspectRatio;
-    fidelity: FidelityLock;
-
-    lens: string; // e.g. "24mm" | "35mm" | "85mm" | etc
-    lighting: string; // e.g. "natural" | "studio" | "neon" | etc
-    filmStyle: FilmStyle;
-
-    templatePreset: UsageTemplate;
-
-    referenceWeight: number; // 0–100 (heurística textual)
-    negativePrompt: string;
-
-    watermark: WatermarkConfig;
-
-    // Texto opcional que el usuario fuerza (no validamos semántica)
-    manualOverride?: string;
-  };
-
-  // Configuración de Moviola (guion)
+  compiledVisualPrompt: string; // El prompt final en Inglés
+  revealSettings: RevealSettingsSnapshot;
   moviola: {
-    engine: string; // "Veo"|"Sora"|"Wan"|"Grok"|"Otro"
+    engine: string;
     durationSec: number;
     intent: string;
   };
 }
 
-export interface Timecode {
-  in: string; // "00:00"
-  out: string; // "00:04"
-  durationSec: number;
-}
-
-export type ShotType = "Wide" | "Medium" | "CloseUp" | "Macro";
+export interface Timecode { in: string; out: string; durationSec: number; }
 
 export interface TimelineClip {
   id: string;
   timecode: Timecode;
-
-  visuals: {
-    shotType: ShotType;
-    cameraMove: string;
-    description: string;
-    focus?: string;
+  visuals: { 
+    shotType: string; 
+    cameraMove: string; 
+    description: string; 
+    focus?: string; 
   };
-
-  audio: {
-    voiceover?: string;
-    sfx?: string;
-    music?: string;
+  audio: { 
+    voiceover?: string; 
+    sfx?: string; 
+    music?: string; 
   };
-
-  // Prompt base (EN) para este clip
-  genPromptBase: string;
+  genPromptBase: string; // Prompt agnóstico
 }
-
-export type EngineStatus = "READY" | "WARNING" | "UNSUPPORTED" | "UNKNOWN";
 
 export interface EnginePacket {
   engine: string;
-  status: EngineStatus;
+  status: "READY" | "WARNING" | "UNSUPPORTED" | "UNKNOWN";
   optimizedPrompts: Array<{ clipId: string; prompt: string }>;
-  compatibilityNotes?: {
-    ratioSupported?: boolean;
-    notes?: string;
-  };
+  compatibilityNotes?: { ratioSupported?: boolean; notes?: string; };
 }
 
 export interface EditScriptMaster {
-  meta: {
-    traceId: string;
-    inputSnapshotHash: string;
-    createdAt: number;
-    formatRatio: AspectRatio;
-    totalDurationSec: number;
-    intent: string;
+  meta: { 
+    traceId: string; 
+    inputSnapshotHash: string; 
+    createdAt: number; 
+    formatRatio: AspectRatio; 
+    totalDurationSec: number; 
+    intent: string; 
   };
-
-  rules: {
-    language: "es-MX";
-    negativesGlobal: string; // texto
-    constraints: string[]; // lista de reglas/avisos
+  rules: { 
+    language: string; 
+    negativesGlobal: string; 
+    constraints: string[]; 
   };
-
   timeline: TimelineClip[];
   enginePackets: EnginePacket[];
 }

@@ -1,4 +1,5 @@
-# CONFIGURACIÓN DEL PROYECTO: VOCES DE GUERRERO (SNAC v4.2.0)
+
+# CONFIGURACIÓN DEL PROYECTO: VOCES DE GUERRERO (SNAC v5.0.0)
 
 Este archivo define el contexto, reglas y arquitectura técnica para el asistente IA que trabaja en "Voces de Guerrero".
 
@@ -25,7 +26,7 @@ Este archivo define el contexto, reglas y arquitectura técnica para el asistent
 ## 2. Resumen del Proyecto
 
 **Nombre:** Voces de Guerrero – Motor Narrativo Visual
-**Versión:** v4.2.0 (Audit & Standardized)
+**Versión:** v5.0.0 (Expanded Darkroom & Moviola)
 **Descripción:** Una aplicación web que toma una imagen subida por el usuario, analiza su contexto cultural (Guerrero), genera una historia basada en templates configurables (v4 Assets), y produce derivados multimedia (Audio TTS, Scripts, Imágenes Ilustrativas).
 
 ### Flujo de Usuario (The Pipeline)
@@ -33,14 +34,17 @@ Este archivo define el contexto, reglas y arquitectura técnica para el asistent
 2.  **Configuración:** Usuario selecciona Tono, Lugar (Iguala, Acapulco, etc.) y Elementos Culturales.
 3.  **Borrador:** `gemini-3-flash-preview` escribe la narrativa base. Usuario edita en `DraftEditor`.
 4.  **Derivados:** Sistema genera Guion Social, Artículo y Prompt Visual en paralelo.
-5.  **Revelado:** Usuario genera Audio (TTS) e Imagen Final (Imagen 2.5/Nano Banana) en `ResultsView`.
+5.  **Revelado (v5.0):**
+    *   **Expanded Darkroom:** Usuario ajusta lentes (35mm, 85mm), iluminación y estilos en `PhotoEditorPanel`.
+    *   **Moviola:** Generación de guion técnico JSON para motores de video externos (Veo/Sora).
+    *   **Síntesis:** Generación de imagen final y audio TTS.
 
 ---
 
 ## 3. Reglas de Código y Estilo
 
 ### TypeScript & React
-*   **Tipado Estricto:** Usar interfaces definidas en `types.ts` (`NarrativeConfig`, `GeneratedContent`, `SystemAssetsV4`).
+*   **Tipado Estricto:** Usar interfaces definidas en `types.ts` (`NarrativeConfig`, `GeneratedContent`, `SystemAssetsV4`) y `types/moviola.ts`.
 *   **Componentes:** Funcionales, pequeños y modulares. Usar `bg-slate-950` como base dark mode.
 *   **Manejo de Errores:** Siempre envolver llamadas a API en `try/catch` y exponer errores en el estado `processing.error`.
 
@@ -60,14 +64,16 @@ Este archivo define el contexto, reglas y arquitectura técnica para el asistent
 ## 4. Estructura de Archivos Clave
 
 *   `types.ts`: Diccionario de datos y contratos de interfaces.
+*   `types/moviola.ts`: Contratos para el motor de guionización y revelado avanzado.
 *   `constants.ts`: Prompts del sistema, assets por defecto (Lugares, Temas) y reglas de negocio.
 *   `services/geminiService.ts`: Lógica de interacción con la API.
-*   `services/storageService.ts`: Gestión de `localStorage` y migración de versiones de datos (v2 -> v4).
+*   `services/moviolaService.ts`: Lógica de segmentación narrativa y generación de JSON técnico.
+*   `services/storageService.ts`: Gestión de `localStorage` y migración de versiones de datos.
 *   `components/ResultsView.tsx`: Vista principal de resultados (Bento Grid, Audio Player, Image Reveal).
-*   `components/ConfigForm.tsx`: Formulario de configuración narrativa con selectores dinámicos.
+*   `components/PhotoEditorPanel.tsx`: Panel de control de Expanded Darkroom.
 
 ---
 
 ## 5. Prompt de Inicialización (Copiar y pegar al iniciar sesión)
 
-> "Analiza `config_proyecto.md`. Estoy trabajando en Voces de Guerrero v4.2.0. Revisa `geminiService.ts` y asegúrate de que cualquier cambio futuro mantenga la estrategia de ejecución paralela para evitar errores de JSON. ¿Listo para iterar?"
+> "Analiza `config_proyecto.md`. Estoy trabajando en Voces de Guerrero v5.0.0. Revisa `moviolaService.ts` y asegúrate de que cualquier cambio futuro mantenga la integridad del guion JSON. ¿Listo para iterar?"

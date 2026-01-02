@@ -344,7 +344,7 @@ const App: React.FC = () => {
              <div>
                 <h1 className="text-lg font-serif font-bold text-slate-100 tracking-wide group-hover:text-amber-500 transition-colors">Voces de Guerrero</h1>
                 <p className="text-[10px] text-slate-400 uppercase tracking-widest flex items-center gap-1">
-                   v4.3.0 <span className="text-slate-600">•</span>
+                   v5.0.0 <span className="text-slate-600">•</span>
                    <span className={selectedMode === 'ultra' ? "text-amber-400 font-bold" : "text-emerald-500"}>{selectedMode === 'ultra' ? 'ULTRA' : 'STD'}</span>
                 </p>
              </div>
